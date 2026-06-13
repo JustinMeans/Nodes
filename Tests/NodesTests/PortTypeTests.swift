@@ -67,4 +67,44 @@ struct PortTypeTests {
             Issue.record("Expected custom type")
         }
     }
+
+    @Test("PortType rawValue roundtrip for array and custom cases")
+    func portTypeRawValueRoundtripParametric() {
+        // `allCases` deliberately omits the parametric `.array` and `.custom`
+        // cases, yet both are serialized via `PortRegistry.Snapshot`. Lock in
+        // their `rawValue` <-> `init?(rawValue:)` round-trip explicitly.
+        let cases: [PortType] = [
+            .array(element: .float),
+            .array(element: .string),
+            .array(element: .vector3),
+            .array(element: .array(element: .int)),
+            .array(element: .custom(name: "Foo")),
+            .custom(name: "MyType"),
+            .custom(name: "Module.Nested")
+        ]
+
+        for portType in cases {
+            let raw = portType.rawValue
+            let restored = PortType(rawValue: raw)
+            #expect(restored == portType, "Round-trip failed for \(raw)")
+        }
+    }
+
+    @Test("PortType survives Codable round-trip including parametric cases")
+    func portTypeCodableRoundtrip() throws {
+        let cases: [PortType] = PortType.allCases + [
+            .array(element: .double),
+            .array(element: .array(element: .bool)),
+            .custom(name: "Custom")
+        ]
+
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        for portType in cases {
+            let data = try encoder.encode(portType)
+            let restored = try decoder.decode(PortType.self, from: data)
+            #expect(restored == portType)
+        }
+    }
 }
